@@ -27,6 +27,8 @@ class LEncoder():
 
 MEL_SPEC_N_FFT = 1024
 N_MFCC = 40
+hidden_size = 512 # 512-unit GRU
+z_dimension = 16 # out feature size of the last dense layer
 
 class ZEncoder(nn.Module):
     def __init__(self, signal_len, sr):
@@ -51,15 +53,17 @@ class ZEncoder(nn.Module):
         self.layer_norm = nn.LayerNorm(layer_norm_input_shape)
 
 
-        nn.GRU(n_input * hidden_size, hidden_size, batch_first=True)
-        """
-        SIZE = 0
-        hidden_size = 0
-
-        pass"""
+        self.gru = nn.GRU(N_MFCC, hidden_size, batch_first=True)
+        self.dense = nn.Linear(in_features=hidden_size, out_features=z_dimension)
 
     def forward(self, signal):
-        return self.layer_norm(self.mfcc(signal))
+        x = self.mfcc(signal)
+        x = self.layer_norm(x) # [batch, # mfccs, # frames]
+        
+        x = x.transpose(1, 2) # [batch, # frames, # mfccs]
+        x, h_n = self.gru(x) # [batch, # frams, # hidden_size(512)]
+        x = self.dense(x)
+        return x
 
 
 signal, sr = torchaudio.load("random_audio_for_testing3.wav", normalize=True)
