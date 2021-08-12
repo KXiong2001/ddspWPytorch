@@ -1,12 +1,16 @@
 import crepe
-from scipy.io import wavfile
-import matplotlib.pyplot as plt
 import torch.nn as nn
 import torchaudio
-import math  
+import torch
+import math
+import librosa
 
 
-F0_PREDICTION_CONFIDENCE_THRESHOLD = 0.8
+N_FFT = 1024
+OVERLAP_RATE = 0.75
+N_MFCC = 40
+hidden_size = 512 # 512-unit GRU
+z_dimension = 16 # out feature size of the last dense layer
 
 class F0Encoder():
     def __init__(self):
@@ -18,29 +22,52 @@ class F0Encoder():
 
 
 class LEncoder():
-    def __init__():
+    def __init__(self):
         pass
 
     def __call__(self, signal, sr):
-        pass
+        hop_step = int(N_FFT * (1 - OVERLAP_RATE))
+
+        s = torch.stft(signal, N_FFT, hop_length=hop_step, return_complex=True)
+        
+        # Compute power and convert to dB scale.
+        s = torch.abs(s)
+        s[s == 0] = 1e-20
+        db = torch.mul(torch.log10(s), 20)
+
+        # Weight
+        frequencies = librosa.fft_frequencies(sr=sr, n_fft=N_FFT)
+        a_weighting = librosa.A_weighting(frequencies)
+        a_weighting = a_weighting.reshape(-1, len(frequencies), 1)
+        loudness = db + a_weighting
 
 
-MEL_SPEC_N_FFT = 1024
-N_MFCC = 40
-hidden_size = 512 # 512-unit GRU
-z_dimension = 16 # out feature size of the last dense layer
+        # Set dynamic range.
+        ref_db = 20.7
+        range_db = 120.0
+
+        loudness -= ref_db
+        loudness = torch.maximum(loudness, torch.FloatTensor([-range_db]).expand_as(loudness))
+
+        loudness = torch.mean(loudness, 1) # [batch, # frames]
+                                        
+        return loudness
+
+
 
 class ZEncoder(nn.Module):
     def __init__(self, signal_len, sr):
         super(ZEncoder, self).__init__()
 
+        hop_step = int(N_FFT * (1 - OVERLAP_RATE))
+
         self._signal_len = signal_len
         self._sr = sr
-        self._size_after_mfcc = math.ceil(self._signal_len / (MEL_SPEC_N_FFT // 4))
+        self._size_after_mfcc = math.ceil(self._signal_len / hop_step)
 
         melspec_args = {
             "n_fft": 1024,
-            "hop_length": 1024 // 4,
+            "hop_length": hop_step,
             "f_min": 20,
             "f_max": 8000
         }
@@ -66,10 +93,20 @@ class ZEncoder(nn.Module):
         return x
 
 
+class F0LZEncoder():
+    def __init__():
+        pass
+
+    def __call__(self, signal, sr):
+        pass
+
+
 signal, sr = torchaudio.load("random_audio_for_testing3.wav", normalize=True)
-print(signal.shape)
+l = LEncoder()
+print(l(signal,sr))
+"""print(signal.shape)
 zEncoder = ZEncoder(signal.shape[1], sr)
-print(zEncoder(signal).shape)
+print(zEncoder(signal).shape)"""
 
 
 """f0Encoder = F0Encoder()
