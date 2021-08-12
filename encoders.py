@@ -101,9 +101,9 @@ class F0LZEncoder():
         pass
 
 
-signal, sr = torchaudio.load("random_audio_for_testing3.wav", normalize=True)
+"""signal, sr = torchaudio.load("random_audio_for_testing3.wav", normalize=True)
 l = LEncoder()
-print(l(signal,sr))
+print(l(signal,sr))"""
 """print(signal.shape)
 zEncoder = ZEncoder(signal.shape[1], sr)
 print(zEncoder(signal).shape)"""
