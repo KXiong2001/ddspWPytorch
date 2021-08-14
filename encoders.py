@@ -1,58 +1,20 @@
-import crepe
 import torch.nn as nn
 import torchaudio
 import torch
 import math
 import librosa
 
+from test import F0Encoder
+
 
 N_FFT = 1024
 OVERLAP_RATE = 0.75
+
+# ---- ZEncoder ---- #
+
 N_MFCC = 40
 hidden_size = 512 # 512-unit GRU
 z_dimension = 16 # out feature size of the last dense layer
-
-class F0Encoder():
-    def __init__(self):
-        pass
-
-    def __call__(self, signal, sr):
-        time, frequency, confidence, activation = crepe.predict(signal, sr, viterbi=True)
-        return frequency, confidence
-
-
-class LEncoder():
-    def __init__(self):
-        pass
-
-    def __call__(self, signal, sr):
-        hop_step = int(N_FFT * (1 - OVERLAP_RATE))
-
-        s = torch.stft(signal, N_FFT, hop_length=hop_step, return_complex=True)
-        
-        # Compute power and convert to dB scale.
-        s = torch.abs(s)
-        s[s == 0] = 1e-20
-        db = torch.mul(torch.log10(s), 20)
-
-        # Weight
-        frequencies = librosa.fft_frequencies(sr=sr, n_fft=N_FFT)
-        a_weighting = librosa.A_weighting(frequencies)
-        a_weighting = a_weighting.reshape(-1, len(frequencies), 1)
-        loudness = db + a_weighting
-
-
-        # Set dynamic range.
-        ref_db = 20.7
-        range_db = 120.0
-
-        loudness -= ref_db
-        loudness = torch.maximum(loudness, torch.FloatTensor([-range_db]).expand_as(loudness))
-
-        loudness = torch.mean(loudness, 1) # [batch, # frames]
-                                        
-        return loudness
-
 
 
 class ZEncoder(nn.Module):
@@ -84,31 +46,38 @@ class ZEncoder(nn.Module):
         self.dense = nn.Linear(in_features=hidden_size, out_features=z_dimension)
 
     def forward(self, signal):
+
+        # Signal: [#batch, #samples]
+
         x = self.mfcc(signal)
         x = self.layer_norm(x) # [batch, # mfccs, # frames]
         
         x = x.transpose(1, 2) # [batch, # frames, # mfccs]
         x, h_n = self.gru(x) # [batch, # frams, # hidden_size(512)]
-        x = self.dense(x)
+        x = self.dense(x) # [batch, # frames, # Z dimension (16)]
         return x
 
 
-class F0LZEncoder():
-    def __init__():
-        pass
+signal, sr = torchaudio.load("random_audio_for_testing3.wav", normalize=True) # [channel, time]
 
-    def __call__(self, signal, sr):
-        pass
+# vvvv To mimic the data comes in batches! vvvv #
 
+print(signal.shape)
+signal = signal.unsqueeze(0)
+signal = torch.cat((signal, signal), 0)
+signal = signal.squeeze(1) # squeeze out the channel, assuming the signal is monochannel
 
-"""signal, sr = torchaudio.load("random_audio_for_testing3.wav", normalize=True)
+# ^^^^ ----------------------------------- ^^^^ #
+
+"""print(signal.shape)
 l = LEncoder()
 print(l(signal,sr))"""
+
+
 """print(signal.shape)
 zEncoder = ZEncoder(signal.shape[1], sr)
 print(zEncoder(signal).shape)"""
-"""a"""
 
-"""f0Encoder = F0Encoder()
-f0, conf = f0Encoder(signal, sr)
-print(len(signal), len(f0))"""
+f0Encoder = F0Encoder()
+f0 = f0Encoder(signal, sr)
+print(len(signal), len(f0))
