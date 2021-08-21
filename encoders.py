@@ -67,16 +67,6 @@ signal = signal.unsqueeze(0)
 signal = torch.cat((signal, signal), 0)
 signal = signal.squeeze(1) # squeeze out the channel, assuming the signal is monochannel
 
-# ^^^^ ----------------------------------- ^^^^ #
-
-"""print(signal.shape)
-l = LEncoder()
-print(l(signal,sr))"""
-
-
-"""print(signal.shape)
-zEncoder = ZEncoder(signal.shape[1], sr)
-print(zEncoder(signal).shape)"""
 
 f0Encoder = F0Encoder()
 f0 = f0Encoder(signal, sr)

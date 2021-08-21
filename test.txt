@@ -1,4 +1,0 @@
-import crepe
-
-sr, audio = wavfile.read('random_audio_for_testing3.wav')
-time, frequency, confidence, activation = crepe.predict(audio, sr, viterbi=True)
